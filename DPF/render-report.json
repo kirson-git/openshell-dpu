@@ -1,0 +1,24 @@
+{
+  "resources": 160,
+  "platformSHA256": "a9cc88657936e604caa650d86a1e7d2653ae90b3d7e4b6150678f5e6a4a678a1",
+  "site": {
+    "git": {
+      "repoURL": "ssh://git@github.com/kirson-git/openshell-dpu.git",
+      "revision": "main",
+      "path": "DPF/rendered"
+    },
+    "argoNamespace": "dpf-operator-system",
+    "kubernetesVersion": "1.34.0",
+    "storage": {
+      "installLocalPath": true,
+      "className": "local-path"
+    },
+    "operator": {
+      "enabled": false,
+      "mode": "zero-trust",
+      "apiServerHost": "CHANGE-ME",
+      "apiServerPort": 6443
+    }
+  },
+  "validation": "Rendered only; not proof of a successful cluster installation."
+}

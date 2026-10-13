@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: dpf-platform
+  namespace: dpf-operator-system
+  labels:
+    customer.dpf.nvidia.com/package: dpf-platform-v26.4.0
+spec:
+  project: default
+  source:
+    repoURL: ssh://git@github.com/kirson-git/openshell-dpu.git
+    targetRevision: main
+    path: DPF/rendered
+    directory:
+      recurse: false
+      include: '*.yaml'
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: dpf-operator-system
+  syncPolicy:
+    automated:
+      prune: false
+      selfHeal: true
+    syncOptions:
+    - ServerSideApply=true
+    - FailOnSharedResource=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

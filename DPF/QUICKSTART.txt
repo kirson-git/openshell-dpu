@@ -1,0 +1,31 @@
+CUSTOMER QUICK START — DPF 26.4.0 THROUGH ARGO CD
+
+Use a fresh supported Kubernetes management cluster. Read README.md first.
+
+1. Clone the repository and enter DPF/:
+   git clone git@github.com:kirson-git/openshell-dpu.git
+   cd openshell-dpu/DPF
+
+2. Review site.yaml:
+   - git.repoURL: this repository, or your customer-owned fork
+   - git.path: DPF/rendered
+   - kubernetesVersion: your actual management Kubernetes version
+   - Review storage; use your approved existing class for production.
+   - operator.enabled: false installs prerequisites and the DPF Operator.
+     To configure Zero Trust as well, set true and operator.apiServerHost.
+
+3. Render and commit/push reviewed changes (README.md has the git commands):
+   ./dpf-argo.sh --render
+
+4. Bootstrap Argo CD, then register the Git URL and customer-managed read-only
+   deploy key in Argo CD Settings > Repositories before applying the Application:
+   ./dpf-argo.sh --bootstrap-argo
+   ./dpf-argo.sh --apply
+   ./dpf-argo.sh --status
+
+5. After Argo sync finishes:
+   ./dpf-argo.sh --verify
+
+Argo CD reads DPF/rendered and installs the prerequisites and operator in order.
+The baseline does not configure/provision physical DPUs or install HBN.
+See VALIDATION.txt: live end-to-end installation has not been verified yet.

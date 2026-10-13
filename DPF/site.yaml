@@ -1,0 +1,20 @@
+# Repository layout: DPF/ contains this kit; Argo reads DPF/rendered/.
+# Review Kubernetes/storage; enable operator configuration when the API host is known.
+git:
+  repoURL: ssh://git@github.com/kirson-git/openshell-dpu.git
+  revision: main
+  path: DPF/rendered
+argoNamespace: dpf-operator-system
+# Set this to the actual management Kubernetes version before rendering.
+kubernetesVersion: "1.34.0"
+storage:
+  # Quick-start only: local node storage is not shared/HA storage.
+  # To reuse customer storage: false, and set its existing StorageClass below.
+  installLocalPath: true
+  className: local-path
+operator:
+  # false installs the operator; true also creates its site-specific configuration.
+  enabled: false
+  mode: zero-trust # zero-trust or host-trusted
+  apiServerHost: CHANGE-ME # Reachable management Kubernetes API IP or DNS, no URL.
+  apiServerPort: 6443

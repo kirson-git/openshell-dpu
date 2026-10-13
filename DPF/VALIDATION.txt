@@ -1,0 +1,46 @@
+VALIDATION — 2026-10-13
+
+Performed locally without contacting or changing a Kubernetes cluster:
+- 18 automated tests passed: configuration validation, Zero Trust/Host Trusted
+  differences, stale-output detection, ownership collisions, unrelated Application
+  protection, hook translation, dependency ordering, namespace assignment,
+  certificate bootstrap and rejection of rendered secret material.
+- Rendered all six platform components from the actual bundled charts: 160
+  resources for the committed operator-only baseline and 161 for the tested
+  Zero Trust + local-storage example. The baseline uses DPF/rendered in this repo.
+- Validated all 160 committed baseline resources against official Kubernetes
+  v1.34.0 OpenAPI and bundled CRDs; checked Application repository/path linkage.
+- Validated generated custom resources against their bundled CRD schemas.
+- Validated generated Application against Argo CD 9.4.1's bundled Application CRD.
+- Rendered Argo bootstrap values and confirmed annotation tracking is configured.
+- Checked all 161 platform resources against official Kubernetes v1.34.0 OpenAPI
+  and bundled CRD schemas. The checker accounts for IntOrString and omitted
+  optional null fields; it is not API-server admission/CEL validation.
+- Confirmed the cfssl:v1.6.5 container manifest exists and the image inventory
+  includes CronJobs and init containers.
+- Exercised dpf-argo.sh --help and --render from a standalone /tmp copy.
+- Bash syntax and README Markdown lint checks passed.
+- Independent code review found and verified fixes for ownership checks, etcd
+  auth retry behavior, cfssl image pinning and CronJob image inventory.
+
+Tools used: Python 3.12, PyYAML 6.0.1, Helm 4.2.4, jsonschema.
+No installation or Argo synchronization against a live cluster has been run for
+this new GitOps package. Image pulling, admission webhooks, scheduling, storage,
+certificate bootstrap and complete reconciliation remain to be proven on a
+fresh customer-compatible test cluster. This is not production qualification.
+No real DPU/BMC was contacted, provisioned or rebooted.
+
+Reproduce local unit/render checks (jsonschema is an optional test dependency):
+  python3 -m pip install PyYAML==6.0.1 jsonschema
+  python3 -m unittest discover -s tests -v
+  bash -n dpf-argo.sh
+
+To reproduce full schema checks after configuring and rendering the package:
+  curl -fsSL https://raw.githubusercontent.com/kubernetes/kubernetes/v1.34.0/api/openapi-spec/swagger.json -o /tmp/kubernetes-openapi.json
+  python3 tools/validate.py rendered/platform.yaml --kubernetes-schema /tmp/kubernetes-openapi.json
+Use the official schema for your actual target Kubernetes version.
+
+First live trial: use a disposable, fresh management cluster that satisfies the
+DPF 26.4 platform requirements. Follow QUICKSTART.txt, then test a second Argo
+sync, verify unchanged etcd certificates/data, and capture the Application tree,
+hook Jobs, controller status and events before accepting the customer workflow.
