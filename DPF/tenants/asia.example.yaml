@@ -1,0 +1,31 @@
+# Reference only: edit site.yaml and render; do not apply this placeholder file.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tenant-asia
+  labels:
+    customer.dpf.nvidia.com/tenant: asia
+    customer.dpf.nvidia.com/component: tenants
+  annotations:
+    argocd.argoproj.io/sync-wave: '-30'
+---
+apiVersion: provisioning.dpu.nvidia.com/v1alpha1
+kind: DPUCluster
+metadata:
+  name: tenant-asia
+  namespace: tenant-asia
+  labels:
+    customer.dpf.nvidia.com/tenant: asia
+    customer.dpf.nvidia.com/component: tenants
+  annotations:
+    argocd.argoproj.io/sync-wave: '70'
+spec:
+  type: kamaji
+  maxNodes: 1
+  clusterEndpoint:
+    keepalived:
+      interface: CHANGE-ME
+      vip: CHANGE-ME
+      virtualRouterID: 127
+      nodeSelector:
+        node-role.kubernetes.io/control-plane: ''

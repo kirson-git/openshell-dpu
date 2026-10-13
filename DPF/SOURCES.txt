@@ -64,3 +64,14 @@ https://argo-cd.readthedocs.io/en/stable/operator-manual/app-any-namespace/
 Scope: connected management platform installation. Not an air-gap image mirror,
 Kubernetes installer, production HA design, physical DPU onboarding bundle,
 HBN/Argus deployment, existing deployment migration or upgrade qualification.
+
+Optional tenant extension:
+- DPF 26.4.0 DPUCluster API and bundled CRD schema:
+  https://networking-docs.nvidia.com/dpf/26.4.0/dpucluster
+- Same pinned NVIDIA source as above: internal/clustermanager/kamaji/handler.go
+  confirms TenantControlPlanes use their DPUCluster name and namespace.
+- Tenant resources use wave 70, after DPFOperatorConfig at wave 60. The shared
+  controller/store remain in dpf-operator-system; tenant control planes have
+  separate namespaces. Settings ship disabled with placeholder VIPs/interfaces.
+- Site validation supports IPv4/keepalived, unique tenant names and VRRP IDs,
+  and the DPUCluster maxNodes schema bound. It is not network/IPAM validation.

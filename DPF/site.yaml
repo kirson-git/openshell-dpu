@@ -18,3 +18,17 @@ operator:
   mode: zero-trust # zero-trust or host-trusted
   apiServerHost: CHANGE-ME # Reachable management Kubernetes API IP or DNS, no URL.
   apiServerPort: 6443
+# Optional tenant control planes. See tenants/README.md before enabling.
+tenants:
+  enabled: false
+  items:
+    - name: europe
+      vip: CHANGE-ME # Reserved tenant API IPv4; excluded from DHCP.
+      interface: CHANGE-ME # OOB interface on management control-plane nodes.
+      virtualRouterID: 126 # Confirm unused in your management L2 network.
+      maxNodes: 1 # DPU capacity, not the number of control-plane replicas.
+    - name: asia
+      vip: CHANGE-ME # Must differ from Europe and the management API address.
+      interface: CHANGE-ME
+      virtualRouterID: 127
+      maxNodes: 1

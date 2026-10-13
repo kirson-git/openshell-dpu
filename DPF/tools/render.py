@@ -50,7 +50,59 @@ def validate(cfg):
         try:ipaddress.ip_address(host)
         except ValueError:
             if not isinstance(host,str) or host=='CHANGE-ME' or not re.fullmatch(r'[a-zA-Z0-9](?:[a-zA-Z0-9.-]*[a-zA-Z0-9])?',host):raise ValueError('Set operator.apiServerHost to the reachable management API host, without scheme/port')
+    validate_tenants(cfg)
     return cfg
+
+def enabled_tenants(cfg):
+    tenants=cfg.get('tenants',{})
+    return tenants.get('items',[]) if tenants.get('enabled',False) else []
+
+def validate_tenants(cfg):
+    tenants=cfg.get('tenants',{})
+    if not isinstance(tenants,dict) or type(tenants.get('enabled',False)) is not bool:
+        raise ValueError('tenants must be a mapping with a boolean enabled')
+    if not tenants.get('enabled',False):return
+    if not cfg['operator']['enabled']:
+        raise ValueError('Enabled tenants require operator.enabled: true so Kamaji cluster management runs')
+    items=tenants.get('items')
+    if not isinstance(items,list) or not items:raise ValueError('Enabled tenants require a nonempty items list')
+    names=set();vips=set();router_ids=set()
+    for tenant in items:
+        if not isinstance(tenant,dict):raise ValueError('Each tenant must be a mapping')
+        name=tenant.get('name','')
+        if not isinstance(name,str) or not re.fullmatch(r'[a-z0-9](?:[-a-z0-9]*[a-z0-9])?',name) or len(name)>56:
+            raise ValueError('Tenant name must be a lowercase DNS label, 1-56 characters')
+        vip=tenant.get('vip','')
+        if not isinstance(vip,str):raise ValueError('Tenant vip must be an IPv4 address string')
+        ip=ipaddress.IPv4Address(vip)
+        if ip.is_unspecified or ip.is_multicast or ip.is_loopback or ip.is_link_local or int(ip)==2**32-1:
+            raise ValueError('Tenant vip must be a usable unicast IPv4 address reserved by your network administrator')
+        if vip==cfg['operator']['apiServerHost']:raise ValueError('Tenant VIP must differ from management API address')
+        interface=tenant.get('interface','')
+        if not isinstance(interface,str) or interface=='CHANGE-ME' or not re.fullmatch(r'[A-Za-z0-9_][A-Za-z0-9_.-]{0,14}',interface):
+            raise ValueError('Tenant interface must be the management-node interface name, 1-15 characters')
+        router_id=tenant.get('virtualRouterID')
+        if type(router_id) is not int or not 1<=router_id<=255:raise ValueError('Tenant virtualRouterID must be an integer from 1 to 255')
+        max_nodes=tenant.get('maxNodes',1000)
+        if type(max_nodes) is not int or not 1<=max_nodes<=1000:raise ValueError('Tenant maxNodes must be an integer from 1 to 1000')
+        if name in names or vip in vips or router_id in router_ids:
+            raise ValueError('Tenant names, VIPs and virtualRouterIDs must each be unique in this kit')
+        names.add(name);vips.add(vip);router_ids.add(router_id)
+
+def tenant_resources(cfg):
+    objects=[]
+    for tenant in enabled_tenants(cfg):
+        name='tenant-'+tenant['name']
+        labels={'customer.dpf.nvidia.com/tenant':tenant['name']}
+        namespace={'apiVersion':'v1','kind':'Namespace','metadata':{'name':name,'labels':labels}}
+        cluster={'apiVersion':'provisioning.dpu.nvidia.com/v1alpha1','kind':'DPUCluster',
+            'metadata':{'name':name,'namespace':name,'labels':labels},
+            'spec':{'type':'kamaji','maxNodes':tenant.get('maxNodes',1000),
+                'clusterEndpoint':{'keepalived':{
+                    'interface':tenant['interface'],'vip':tenant['vip'],'virtualRouterID':tenant['virtualRouterID'],
+                    'nodeSelector':{'node-role.kubernetes.io/control-plane':''}}}}}
+        objects.extend([prepare_object(namespace,'tenants',-30),prepare_object(cluster,'tenants',70)])
+    return objects
 
 def load_config(path):
     cfg=yaml.safe_load(pathlib.Path(path).read_text())
@@ -139,6 +191,7 @@ def run(command):
     return subprocess.run(command,check=True,text=True,capture_output=True).stdout
 
 def render(cfg,out):
+    validate(cfg)
     out=pathlib.Path(out); out.mkdir(parents=True,exist_ok=True)
     resources=[]
     for namespace in [NS,'cert-manager']+(['local-path-provisioner'] if cfg['storage']['installLocalPath'] else []):
@@ -157,6 +210,7 @@ def render(cfg,out):
                 prepared=prepare_object(obj,name,wave)
                 if prepared:resources.append(prepared)
     if cfg['operator']['enabled']:resources.append(prepare_object(operator_config(cfg),'operator-config',60))
+    resources.extend(tenant_resources(cfg))
     keys=[(o['apiVersion'],o['kind'],o['metadata'].get('namespace',''),o['metadata']['name']) for o in resources]
     if len(keys)!=len(set(keys)):raise ValueError('Duplicate resource identity in rendered charts')
     images=set()

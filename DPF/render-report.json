@@ -18,6 +18,25 @@
       "mode": "zero-trust",
       "apiServerHost": "CHANGE-ME",
       "apiServerPort": 6443
+    },
+    "tenants": {
+      "enabled": false,
+      "items": [
+        {
+          "name": "europe",
+          "vip": "CHANGE-ME",
+          "interface": "CHANGE-ME",
+          "virtualRouterID": 126,
+          "maxNodes": 1
+        },
+        {
+          "name": "asia",
+          "vip": "CHANGE-ME",
+          "interface": "CHANGE-ME",
+          "virtualRouterID": 127,
+          "maxNodes": 1
+        }
+      ]
     }
   },
   "validation": "Rendered only; not proof of a successful cluster installation."

@@ -13,6 +13,8 @@ Use a fresh supported Kubernetes management cluster. Read README.md first.
    - Review storage; use your approved existing class for production.
    - operator.enabled: false installs prerequisites and the DPF Operator.
      To configure Zero Trust as well, set true and operator.apiServerHost.
+   - Optional: follow tenants/README.md, complete each tenant VIP/interface,
+     and set tenants.enabled: true (requires operator.enabled: true).
 
 3. Render and commit/push reviewed changes (README.md has the git commands):
    ./dpf-argo.sh --render

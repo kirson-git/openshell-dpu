@@ -98,7 +98,11 @@ def verify(cfg):
         if config.get('status',{}).get('observedGeneration')!=config['metadata']['generation']:
             raise ValueError('DPFOperatorConfig readiness is from an older generation; retry verification after reconciliation')
         command('kubectl','get','dpfoperatorconfig','dpfoperatorconfig','-n',render.NS,'-o','yaml')
-    print('Argo sync and platform workload checks passed. DPU provisioning and service readiness are separate checks.')
+    for tenant in render.enabled_tenants(cfg):
+        name='tenant-'+tenant['name']
+        command('kubectl','wait','dpucluster/'+name,'-n',name,'--for=jsonpath={.status.phase}=Ready','--timeout=600s')
+        command('kubectl','get','dpucluster',name,'-n',name,'-o','wide')
+    print('Argo sync, platform workloads and enabled tenant control-plane checks passed. DPU provisioning and service readiness are separate checks.')
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
@@ -107,8 +111,8 @@ def main():
       ('render','Generate manifests and Application from local bundled charts; no cluster access'),
       ('bootstrap-argo','Install fresh Argo CD 9.4.1, or verify an existing installation without upgrading it'),
       ('apply','Check prerequisites/ownership and apply the generated Argo Application to the current cluster'),
-      ('status','Display Application, pods and events without changing cluster resources'),
-      ('verify','Require Argo Synced/Healthy and verify management workload rollouts')]:group.add_argument('--'+flag,action='store_true',help=help_text)
+      ('status','Display Application, enabled tenants, pods and events without cluster writes'),
+      ('verify','Require Argo Synced/Healthy, management rollouts and enabled tenant control planes')]:group.add_argument('--'+flag,action='store_true',help=help_text)
     parser.add_argument('--config',type=pathlib.Path,default=ROOT/'site.yaml',help='Site YAML path (default: site.yaml beside script)')
     args=parser.parse_args()
     try:
@@ -119,6 +123,10 @@ def main():
             command('kubectl','get','application','dpf-platform','-n',cfg['argoNamespace'],'-o','wide')
             for ns in [cfg['argoNamespace'],render.NS,'cert-manager','local-path-provisioner']:
                 command('kubectl','get','pods','-n',ns)
+            for tenant in render.enabled_tenants(cfg):
+                ns='tenant-'+tenant['name']
+                command('kubectl','get','dpucluster',ns,'-n',ns,'-o','wide')
+                command('kubectl','get','tenantcontrolplanes,pods','-n',ns)
             command('kubectl','get','events','-n',render.NS,'--sort-by=.lastTimestamp')
             return 0
         if args.verify:verify(cfg);return 0
