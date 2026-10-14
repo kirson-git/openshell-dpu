@@ -69,7 +69,7 @@ git commit -m "Configure Europe and Asia DPF tenant control planes"
 git push
 ```
 
-For a first installation, follow the main [quick start](../README.md#quick-start)
+For a first installation, follow the main [CLI installation](../README.md#cli-installation-argo-cd--dpf)
 to bootstrap Argo CD, configure Git access, and run `--apply`. If the platform
 Application is already installed and follows your branch, Argo automatically
 synchronizes the committed change. No second Application is required.

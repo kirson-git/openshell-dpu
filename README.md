@@ -14,7 +14,8 @@ cd openshell-dpu/DPF
 
 See the [architecture diagram and YAML-to-service map](DPF/README.md#how-dpf-uses-the-stack)
 and [Europe/Asia example](DPF/README.md#example-zero-trust-with-europe-and-asia).
-Start with [DPF/QUICKSTART.txt](DPF/QUICKSTART.txt). Review `site.yaml`, render the
+Start with the [Argo CD + DPF CLI installation commands](DPF/README.md#cli-installation-argo-cd--dpf)
+or [DPF/QUICKSTART.txt](DPF/QUICKSTART.txt). Review `site.yaml`, render the
 YAML, commit changes to your repository, bootstrap Argo CD, configure repository
 access, and apply `application.yaml`.
 
@@ -30,3 +31,10 @@ The committed baseline installs the prerequisites and DPF Operator. Enable
 site-specific operator configuration after setting the management API address.
 Tenant control planes can then be enabled in the same settings file. Physical
 DPU provisioning and HBN services are separate steps.
+
+## NICo with DPF
+
+See [NICo/README.md](NICo/README.md) for the differences from standalone DPF,
+installation choices, v2.2.1 release considerations and which images/charts need
+updating. The executable Argo kit remains under `DPF/`; the NICo section is an
+integration and release-selection guide.

@@ -17,6 +17,9 @@ HBN/Argus service bundles require a separate site-specific configuration.
 Nothing in this kit reboots or provisions a physical DPU. Monitoring add-ons are not installed by this minimum
 platform package.
 
+For full server lifecycle management, see [NICo with DPF](../NICo/README.md)
+before choosing installation ownership.
+
 ## Choose how to build the stack
 
 Customers can build the platform in stages. Start with the supplied baseline,
@@ -155,102 +158,156 @@ IDs. The interface is on the management control-plane nodes. Follow the
 [tenant guide](tenants/README.md) for networking requirements, commands and
 verification, then use the quick start below for the full installation.
 
-## Quick start
+## CLI installation: Argo CD + DPF
 
-Use a **fresh management cluster**. This kit lives under `DPF/`; the generated
-Application reads `DPF/rendered` on this repository's `main` branch.
+Run the following steps in Bash on your administration machine against a **fresh
+management Kubernetes cluster**. Required tools: Git, Python 3 with venv support,
+Helm and kubectl. No Argo CD CLI is required. The examples use kubectl's current
+context. Kubernetes, CNI/DNS, working node time and registry access must already
+exist; nodes need the control-plane labels used by NVIDIA's supplied affinities.
+Cluster-admin permissions are required for CRDs and RBAC.
+
+### 1. Get the files and Python dependency
 
 ```bash
 git clone git@github.com:kirson-git/openshell-dpu.git
 cd openshell-dpu/DPF
-```
-
-For customer-specific changes, fork or copy this repository into a customer-owned
-Git repository and change `git.repoURL` before rendering. Keep `git.path` as
-`DPF/rendered` when keeping this layout. The SSH URL requires repository access
-on the administration machine and separate read access configured in Argo CD.
-Do not copy lab kubeconfigs, passwords, logs or inventory.
-
-The administration machine needs Bash, Python with PyYAML, Helm, kubectl and Git.
-The package was checked with Python 3.12, PyYAML 6.0.1 and Helm 4.2.4. The Kubernetes
-version in `site.yaml` must match your management cluster and DPF's supported
-platform matrix. Nodes must have working CNI/DNS, time, registry access and the
-`node-role.kubernetes.io/control-plane` label used by NVIDIA's supplied affinities.
-Cluster-admin access is needed to install the platform's CRDs and RBAC.
-
-1. Check the target cluster and edit `site.yaml`:
-
-   ```bash
-   kubectl config current-context
-   kubectl version
-   kubectl get nodes
-   vi site.yaml
-   ```
-
-   Set `git.repoURL` if using a fork and set `kubernetesVersion` to your cluster's
-   actual version. Review storage. The committed `operator.enabled: false`
-   installs the prerequisites and DPF Operator without DPFOperatorConfig.
-   For Zero Trust configuration, set `operator.enabled: true` and the reachable
-   management API host in `operator.apiServerHost`. To add tenant control planes,
-   also complete the `tenants` section using [the tenant guide](tenants/README.md).
-   No password belongs here.
-
-2. Generate all deployment YAMLs:
-
-   ```bash
-   ./dpf-argo.sh --render
-   ```
-
-3. Commit the reviewed files to your repository, on the branch in `git.revision`:
-
-   ```bash
-   git add .gitignore README.md site.yaml dpf-argo.sh tools values charts tests tenants \
-     LICENSE.dpf LICENSE.local-path SOURCES.txt VALIDATION.txt QUICKSTART.txt SHA256SUMS \
-     rendered application.yaml argo-bootstrap-values.yaml images.txt render-report.json
-   git commit -m "Add DPF management platform"
-   git push
-   ```
-
-   Your Git remote/upstream must already be configured. `git.path` must point to
-   the committed `rendered` directory. If the package is in a subdirectory, include
-   that prefix in `git.path`. Argo CD must be able to read this repository and
-   revision; local files alone are not enough. For this SSH repository, register
-   its credentials with Argo CD using your normal secret-management process after
-   bootstrapping it and before `--apply`. Never put credentials in `site.yaml` or the Git URL.
-
-4. Bootstrap Argo CD, then submit the single Application:
-
-   ```bash
-   ./dpf-argo.sh --bootstrap-argo
-   # Configure repository access in Argo CD: Settings > Repositories.
-   # Use the URL in site.yaml and a customer-managed read-only deploy key.
-   ./dpf-argo.sh --apply
-   ./dpf-argo.sh --status
-   ```
-
-   If Argo CD already exists, the bootstrap command verifies its configuration
-   without upgrading its release. It must meet the requirements below.
-
-5. When synchronization finishes, verify:
-
-   ```bash
-   ./dpf-argo.sh --verify
-   ```
-
-   A nonzero exit means a check failed or the installation is still progressing.
-   The command checks the Application and management workloads. Review the DPF
-   configuration conditions as well; verification waits for Ready and checks its
-   observed generation. When tenants are enabled, it also waits for each
-   DPUCluster to reach phase `Ready`. Passing these checks does not prove that a
-   DPU has been provisioned or that tenant traffic works.
-
-If PyYAML is missing, install it in a local virtual environment:
-
-```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install PyYAML==6.0.1
+./dpf-argo.sh --help
 ```
+
+If already cloned, enter your checkout's `DPF/` directory instead of cloning
+again. For customer-specific changes, use a customer-owned fork and clone its
+URL. The checkout/upstream branch and `site.yaml` must refer to that repository.
+The package was locally checked with Python 3.12, PyYAML 6.0.1 and Helm 4.2.4.
+
+### 2. Select the cluster and configure the stack
+
+```bash
+kubectl config current-context
+kubectl version
+kubectl get nodes
+vi site.yaml
+```
+
+Set `git.repoURL` to the SSH URL of your repository, keep `git.path: DPF/rendered`,
+and select its branch in `git.revision`. Set `kubernetesVersion` to the actual
+management version within DPF's supported platform matrix. Review storage.
+
+The supplied baseline installs prerequisites and the DPF Operator. Set
+`operator.enabled: true` and your management API address to configure Zero Trust
+as well. Optionally fill in and enable [tenants](tenants/README.md). Credentials
+belong in Kubernetes Secrets, not in this file.
+
+### 3. Render the YAMLs and push them to Git
+
+```bash
+./dpf-argo.sh --render
+git diff -- site.yaml rendered/platform.yaml application.yaml
+git add site.yaml rendered/platform.yaml application.yaml \
+  argo-bootstrap-values.yaml images.txt render-report.json
+git diff --cached --quiet || git commit -m "Configure DPF platform"
+git push
+```
+
+Run these commands on the branch selected in `git.revision`, with its upstream
+configured. If you also changed `values/`, review and commit those files. Argo
+reads the committed revision; local rendering alone does not deploy anything.
+
+### 4. Install Argo CD
+
+```bash
+./dpf-argo.sh --bootstrap-argo
+ARGO_NS="$(python3 tools/render.py --get argoNamespace)"
+kubectl get pods -n "$ARGO_NS"
+```
+
+The helper installs the bundled Argo CD chart and waits for it to start. If an
+installation already exists in `argoNamespace`, it checks the configuration
+without upgrading it. See [Existing Argo CD](#existing-argo-cd).
+
+For a fresh installation, the underlying Helm command is shown below as an
+**alternative** to the helper, after step 3; do not run both installation paths.
+The helper additionally verifies Argo configuration and controller readiness.
+
+```bash
+ARGO_NS="$(python3 tools/render.py --get argoNamespace)"
+helm install argo-cd charts/argo-cd-9.4.1.tgz \
+  --namespace "$ARGO_NS" --create-namespace \
+  --values argo-bootstrap-values.yaml --wait --timeout 600s
+```
+
+### 5. Give Argo CD read access to the Git repository
+
+For the supplied SSH URL, prepare a dedicated, unencrypted SSH deploy key whose
+public key is registered on the repository with **read-only** access. The
+administration machine's Git authentication is not automatically available to
+Argo. Supply the private-key file outside this checkout when prompted:
+
+```bash
+ARGO_NS="$(python3 tools/render.py --get argoNamespace)"
+DPF_REPO_URL="$(python3 -c 'import yaml; print(yaml.safe_load(open("site.yaml"))["git"]["repoURL"])')"
+read -r -p "Path to Argo CD read-only Git private key: " DPF_GIT_KEY
+kubectl create secret generic dpf-git-repository \
+  --namespace "$ARGO_NS" \
+  --from-literal=type=git \
+  --from-literal=url="$DPF_REPO_URL" \
+  --from-file=sshPrivateKey="$DPF_GIT_KEY" \
+  --dry-run=client -o yaml | kubectl apply -f -
+kubectl label secret dpf-git-repository -n "$ARGO_NS" \
+  argocd.argoproj.io/secret-type=repository --overwrite
+unset DPF_GIT_KEY
+```
+
+These commands create/update a Kubernetes repository Secret; no private-key
+file is written into Git. If your Argo administrator already configured matching
+repository credentials, skip this step. For HTTPS authentication, use the
+appropriate repository credentials instead of the SSH-key example. For a
+self-hosted Git server, configure its verified SSH host key in Argo's known-hosts
+configuration. See the official [Argo repository configuration](https://argo-cd.readthedocs.io/en/stable/operator-manual/declarative-setup/#repositories).
+
+### 6. Install DPF and its prerequisites through Argo CD
+
+```bash
+./dpf-argo.sh --apply
+./dpf-argo.sh --status
+```
+
+`--apply` checks Argo configuration and existing resource ownership, then runs
+`kubectl apply -f application.yaml`. Argo pulls `DPF/rendered` and installs the
+prerequisites, operator, and selected configuration/tenants in dependency order.
+DPF is not installed with a second Helm command: Argo owns its rendered resources.
+This kit does not automatically adopt an existing Helm-managed DPF installation.
+
+### 7. Monitor and verify
+
+```bash
+ARGO_NS="$(python3 tools/render.py --get argoNamespace)"
+kubectl get application dpf-platform -n "$ARGO_NS" -w
+```
+
+Press Ctrl-C to stop watching once the Application is Synced/Healthy, then run:
+
+```bash
+./dpf-argo.sh --verify
+kubectl get pods,pvc -n dpf-operator-system
+kubectl get dpuclusters -A
+```
+
+Verification checks Argo status and management rollouts. When enabled, it also
+waits for DPFOperatorConfig Ready with current observed generation and each
+DPUCluster's Ready phase. A nonzero exit means installation is still progressing
+or a check failed; use `--status` and inspect the reported conditions. DPU-side
+services may require actual joined DPUs before full DPF readiness is reached.
+A ready tenant control plane can initially have zero nodes. These checks do not
+prove successful hardware provisioning or tenant traffic.
+
+The helper prints its command-log path under `.runtime/` on each action. The
+logs contain its Helm/kubectl commands; Argo's controller logs/resource tree
+provide the reconciliation details. This GitOps workflow has local validation
+only; see `VALIDATION.txt` for the live-test boundary.
 
 ## Files and settings
 

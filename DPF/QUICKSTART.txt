@@ -20,7 +20,8 @@ Use a fresh supported Kubernetes management cluster. Read README.md first.
    ./dpf-argo.sh --render
 
 4. Bootstrap Argo CD, then register the Git URL and customer-managed read-only
-   deploy key in Argo CD Settings > Repositories before applying the Application:
+   deploy key before applying the Application (README.md step 5 has kubectl
+   commands; Argo CD Settings > Repositories is an alternative):
    ./dpf-argo.sh --bootstrap-argo
    ./dpf-argo.sh --apply
    ./dpf-argo.sh --status
