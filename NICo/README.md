@@ -75,6 +75,47 @@ Avoid transplanting another site's credentials or address plan.
 
 ## DPF configuration differences to review
 
+**The DPF Operator is the same software in both options.** NICo v2.2.1's
+installer defaults to DPF v26.4.0, matching this kit. Adding NICo changes the
+integration configuration and who creates the DPU resources; it does not require
+a special NICo edition of DPF.
+
+### What changes in the installation?
+
+1. **Install the shared platform once.** Both paths use the DPF Operator and
+   supporting Kubernetes services. Our kit renders bundled Helm charts for
+   Argo CD; NICo's reference script checks out `doca-platform` and installs its
+   operator source chart with Helm. The script supplies the operator image
+   explicitly. This packaging difference is not a different DPF implementation.
+2. **Configure DPF for NICo-managed discovery.** Keep the Zero Trust/Redfish
+   provisioning model, but let NICo register DPU hardware. The table below
+   identifies the exact differences from our standalone example.
+3. **Provide the DPU Kubernetes control plane.** The reference NICo setup creates
+   `carbide-dpf-cluster`; it must exist before NICo uses it. Our optional
+   Europe/Asia examples are a different topology, not a drop-in NICo tenant map.
+4. **Add NICo permissions and credentials.** NICo's controller needs Kubernetes
+   RBAC for DPF resources, access to BMC credentials, and access to the selected
+   service image and Helm repositories. Keep secret values outside Git.
+5. **Install and configure NICo itself.** Add its Core services, database,
+   credential infrastructure and site configuration. Enable its DPF integration
+   and configure the provisioning software and DPU service versions. NICo and
+   DPF run in the same management Kubernetes cluster in the reference design.
+6. **Let NICo create its runtime DPF resources.** NICo registers DPUDevice and
+   DPUNode objects and creates deployment/software/flavor/service resources.
+   DPF performs the resulting DPU provisioning and service rollout. The
+   installer still supplies DPFOperatorConfig and DPUCluster; NICo does not
+   create those two platform objects at startup.
+
+These steps describe the integration responsibilities, not a replacement
+executable sequence. In particular, v2.2.1's
+[setup.sh](https://github.com/dsx-ai-factory/infra-controller/blob/v2.2.1/helm-prereqs/setup.sh)
+uses a staged first installation of NICo Core: DPF integration off, optional
+BMC-root credential setup, then integration on and a controller restart.
+Our Argo workflow must handle that bootstrap dependency explicitly. Copying
+Helm output into Git without handling initialization is insufficient.
+
+### Exact configuration comparison
+
 The following compares our DPF 26.4.0 kit with the NICo v2.2.1 integration
 [template](https://github.com/dsx-ai-factory/infra-controller/blob/v2.2.1/helm-prereqs/operators/dpf/dpfoperatorconfig.yaml.tmpl):
 
@@ -83,6 +124,7 @@ The following compares our DPF 26.4.0 kit with the NICo v2.2.1 integration
 | `dpuDetector.disable` | `true` in Zero Trust mode. | `true`; NICo explicitly registers managed hardware. |
 | `installViaRedfish.skipDPUNodeDiscovery` | `false`. | `true`; NICo drives DPUNodes instead of automatic discovery. |
 | `provisioningController.osInstallTimeout` | Not overridden by our renderer. | `90m` in the NICo template. |
+| `provisioningController.dmsTimeout` | Explicitly set to `900`. | Not overridden by the NICo template. |
 | `networking.highSpeedMTU` | Not overridden by our renderer. | `9000` in the template; requires a matching fabric. |
 | DPUCluster placement | Optional Europe/Asia namespaces. | Reference setup creates `carbide-dpf-cluster` in `dpf-operator-system`. |
 | Generated deployment resources | Customer's later DPU/service stage. | NICo creates its DPU deployment/software/flavor/service resources. |
@@ -91,6 +133,27 @@ The following compares our DPF 26.4.0 kit with the NICo v2.2.1 integration
 These are integration differences to implement and validate, not instructions
 to patch the live lab automatically. Do not infer that copying just one field
 completes NICo integration.
+
+The timeout values above come from the executable template. The v2.2.1 manual's
+example says `60m` for OS installation, while its installer template uses `90m`.
+Use the template when reproducing that release's installation. Fields omitted
+by one path retain DPF's behavior for that version; omission does not mean zero
+or disabled. These are example settings, not universal DPF requirements.
+
+### Target customer installer
+
+The intended customer experience is one bootstrap command on an existing
+Kubernetes cluster: install or reuse Argo CD, answer site questions, save an
+editable configuration, then let Argo CD reconcile the selected platform.
+The choices are standalone DPF or NICo with DPF. `DPF/` contains the deployable
+DPF kit; `NICo/` contains the integration guidance for the combined option.
+The combined interactive installer remains a planned deliverable as of this
+v2.2.1 review, not an executable feature of this repository.
+
+For that installer, Argo CD should own the shared platform, NICo installation
+and explicit site inputs. NICo should own the runtime DPF objects it generates.
+Do not commit copies of those generated objects into an Argo application that
+would continually overwrite NICo's changes.
 
 ## Release comparison: v2.1 to v2.2
 

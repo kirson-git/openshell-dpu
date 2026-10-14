@@ -38,3 +38,9 @@ See [NICo/README.md](NICo/README.md) for the differences from standalone DPF,
 installation choices, v2.2.1 release considerations and which images/charts need
 updating. The executable Argo kit remains under `DPF/`; the NICo section is an
 integration and release-selection guide.
+
+For the concrete installation differences, see
+[what changes in the DPF installation](NICo/README.md#what-changes-in-the-installation).
+The goal is one installer that bootstraps Argo CD, collects site settings and
+deploys either standalone DPF or NICo with DPF. The combined installer is planned;
+the DPF kit is the executable starting point.
