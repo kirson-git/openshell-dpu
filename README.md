@@ -49,3 +49,11 @@ The installer requirements also distinguish
 [platform Argo CD from DPF service Argo CD and cover prerequisite management](NICo/README.md#two-argo-cd-roles-and-prerequisite-handling).
 Their versions must be validated independently, including shared CRD compatibility
 when separate instances run in the same Kubernetes cluster.
+
+## Production release work
+
+The existing kit is not production-qualified. The
+[production installer design and acceptance gates](docs/superpowers/specs/2026-10-14-production-installer-design.md)
+cover both installation modes, the two Argo roles, prerequisite management,
+credential protection, recovery and a complete lab rebuild. See
+[the validation record](DPF/VALIDATION.txt) for what has actually been tested.
