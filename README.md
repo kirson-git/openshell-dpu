@@ -44,3 +44,8 @@ For the concrete installation differences, see
 The goal is one installer that bootstraps Argo CD, collects site settings and
 deploys either standalone DPF or NICo with DPF. The combined installer is planned;
 the DPF kit is the executable starting point.
+
+The installer requirements also distinguish
+[platform Argo CD from DPF service Argo CD and cover prerequisite management](NICo/README.md#two-argo-cd-roles-and-prerequisite-handling).
+Their versions must be validated independently, including shared CRD compatibility
+when separate instances run in the same Kubernetes cluster.

@@ -155,6 +155,52 @@ and explicit site inputs. NICo should own the runtime DPF objects it generates.
 Do not commit copies of those generated objects into an Argo application that
 would continually overwrite NICo's changes.
 
+### Two Argo CD roles and prerequisite handling
+
+The planned installer must distinguish two Argo CD roles for **both** standalone
+DPF and NICo with DPF:
+
+| Role | Responsibility | Version selection |
+| --- | --- | --- |
+| Platform Argo CD | Reconcile prerequisites, the DPF platform and, when selected, NICo from customer Git. | Pin the chart and application versions validated for the installer. Detect an existing installation before deciding to reuse it. |
+| DPF service Argo CD | Reconcile the applications DPF creates to deploy services onto DPU clusters. | Pin the chart and application versions validated with the selected DPF release. Do not assume the platform Argo version is compatible. |
+
+The installer must support a design with separate instances when required.
+Sharing an instance is an explicit reuse choice after compatibility checks,
+not an assumption. Separate instances need distinct releases and namespaces,
+non-overlapping Application reconciliation scopes, and appropriate RBAC and
+resource tracking. Namespaces alone do not isolate cluster-scoped Argo CRDs:
+both versions must support the shared CRDs, with one defined owner for their
+installation and upgrades. Reject unsupported combinations before deployment.
+
+DPF's `spec.overrides.argoCDNamespace` must point to its service Argo instance;
+the service Helm repository credentials must be available there. See NVIDIA's
+[DPF integration guide](https://docs.nvidia.com/infra-controller/documentation/getting-started/installation-options/dpf-setup#12d-argo-cd-repository-secrets-for-helm-charts).
+The existing DPF kit uses **one** `argoNamespace` for platform Applications and
+DPF's override. Separate Argo instances are a requirement for the new installer,
+not an implemented capability of that configuration field.
+
+Prerequisite handling must be part of the installation, not a separate manual
+exercise:
+
+- Inventory existing components and validate their versions, configuration and
+  ownership before reusing them. Install missing prerequisites; report conflicts
+  rather than silently replacing customer-managed installations.
+- For DPF, handle cert-manager, Node Feature Discovery, Maintenance Operator,
+  Kamaji and its datastore, compatible storage, and the DPF service Argo role.
+  Select requirements and versions from the chosen DPF release and deployment mode.
+- For NICo with DPF, additionally handle the selected NICo profile's database,
+  credential/PKI infrastructure, site networking dependencies and any dependencies
+  of enabled REST services. Shared DPF prerequisites have one owner.
+- Validate Kubernetes compatibility, API/VIP reachability, DNS, time service,
+  registry access and storage before provisioning. Load-balancer installation
+  is conditional on the site's VIP routing design; MetalLB is not universally
+  mandatory.
+- Apply dependencies in order and check readiness before dependent stages.
+  Distinguish platform readiness from DPU readiness: a fresh site may have no
+  enrolled DPUs yet. Record component versions, install/reuse decisions, commands
+  and results, while redacting credentials. Reruns must reconcile existing state.
+
 ## Release comparison: v2.1 to v2.2
 
 The [v2.2 release notes](https://docs.nvidia.com/infra-controller/documentation/release-notes/2026/10/2)
